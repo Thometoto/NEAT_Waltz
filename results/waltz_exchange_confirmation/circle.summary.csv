@@ -1,0 +1,5 @@
+generations,method,baseline,n,median_gain_pp,ci_low_pp,ci_high_pp,wins,ties,losses
+2000,waltz_fixed_5,classic_neat,20,8.59375,4.1015625,9.9609375,17,0,3
+2000,waltz_fixed_5,independent,20,1.5625,-0.390625,2.734375,13,1,6
+2000,waltz_fixed_5,waltz_stationary,20,0.0,-3.125,1.953125,10,0,10
+2000,waltz_fixed_5,ring_migration,20,0.390625,-2.5390625,1.953125,11,0,9

@@ -1,0 +1,28 @@
+# Local environments and Python caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# New runs and quick-example plots; published results remain tracked
+/generated/
+/circle_waltz.png
+/spiral_waltz.png
+/xor_waltz.png
+/results/waltz_tempo_smoke/
+/results/waltz_exchange_smoke/
+/results/waltz_final_confirmation/
+/results/sine_domains/
+
+# Local editor and system files
+.DS_Store
+.idea/
+.vscode/
+.env
+.env.*

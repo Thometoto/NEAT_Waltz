@@ -1,0 +1,9 @@
+metric,baseline,n,median_gain,ci_low,ci_high,wins,ties,losses
+best_genome,classic,10,8.0078125,5.6640625,11.71875,10,0,0
+best_genome,independent,10,4.4921875,-0.5859375,8.0078125,8,0,2
+best_genome,fixed5,10,-1.5625,-4.1015625,0.9765625,3,1,6
+best_genome,fixed15,10,-0.78125,-3.125,1.953125,3,0,7
+best_genome,stationary,10,-2.734375,-3.90625,-0.1953125,2,0,8
+final_waltzer,fixed5,10,0.1953125,-3.3203125,4.6875,5,1,4
+final_waltzer,fixed15,10,-0.5859375,-2.734375,2.734375,4,0,6
+final_waltzer,stationary,10,-2.34375,-7.421875,-0.1953125,2,0,8
