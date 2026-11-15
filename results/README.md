@@ -37,7 +37,7 @@ tempo comparison; analyze the two series separately.
 ## Figures and provenance
 
 The three article figures are stored once, as PNG images in
-`../docs/paper_figures/`: `tempo_effects.png`, `exchange_effects.png`, and
+`../docs/`: `tempo_effects.png`, `exchange_effects.png`, and
 `sine_seed95.png`. `../plot_paper.py` can regenerate PDF and PNG versions from
 the saved numerical data and checks the paired statistics against the saved
 summaries.

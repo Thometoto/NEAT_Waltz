@@ -4,6 +4,8 @@
 
 Thomas Ammendola
 
+[Read the paper](docs/NEAT_Waltz.pdf)
+
 Can a lineage improve by visiting several evolving populations?
 
 NEAT Waltz explores this idea. Several NEAT populations evolve in parallel.
@@ -65,8 +67,8 @@ consistently help. On Sine, waltzers do not reliably combine local improvements
 into a better global solution.
 
 The [saved results](results/README.md) include scores, settings, and datasets.
-Figures: [tempo comparison](docs/paper_figures/tempo_effects.png),
-[exchange comparison](docs/paper_figures/exchange_effects.png), and
-[Sine example](docs/paper_figures/sine_seed95.png).
+Figures: [tempo comparison](docs/tempo_effects.png),
+[exchange comparison](docs/exchange_effects.png), and
+[Sine example](docs/sine_seed95.png).
 
 Built with [NEAT-Python](https://github.com/CodeReclaimers/neat-python).
