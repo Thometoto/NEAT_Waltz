@@ -1,0 +1,27 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Le pendule de NEAT Waltz</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f4ef;color:#202925;font:16px/1.45 system-ui,sans-serif}main{max-width:790px;margin:3vh auto;padding:20px}h1{font-size:clamp(29px,5vw,45px);letter-spacing:-.04em;margin:0 0 4px}p{margin:0 0 16px}.card{background:#fff;border:1px solid #d6dbd5;border-radius:14px;padding:clamp(14px,3vw,25px)}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}select,button{font:inherit;padding:6px 12px;border:1px solid #8d9c94;border-radius:6px;background:white;color:inherit}button{cursor:pointer}#play{background:#174f46;color:white;min-width:80px}canvas{display:block;width:100%;height:auto}dl{display:flex;flex-wrap:wrap;gap:12px 38px;margin:8px 0 16px}dt{color:#485c53;font-size:14px}dd{font-variant-numeric:tabular-nums;margin:0;font-weight:650;font-size:20px}input{flex:1;min-width:120px;accent-color:#174f46}footer{font-size:14px;color:#46594f;margin-top:14px}
+</style><main><h1>Le pendule de NEAT Waltz</h1><p>Le réseau commande un moteur au pivot pour relever la tige et la maintenir à la verticale.</p><section class="card"><div class="row"><label for="ep">Départ de test</label><select id="ep"></select></div><canvas id="stage" width="960" height="495" aria-label="Pendule autour de son pivot. La cible en pointillé indique la verticale haute."></canvas><dl><div><dt>Temps simulé</dt><dd id="time"></dd></div><div><dt>Couple appliqué</dt><dd id="torque"></dd></div><div><dt>Score cumulé</dt><dd id="score"></dd></div></dl><div class="row"><button id="play">Lire</button><input id="step" type="range" min="0" max="200" value="0" aria-label="Position dans l’épisode"></div></section><footer>Champion global sélectionné à l’entraînement · <span id="identity"></span>. La stabilité indique combien des 50 derniers pas sont proches de la verticale (±15°, vitesse ≤ 1 rad/s). Chaque départ dure 200 pas de 0,05 s. Un score final plus proche de zéro est meilleur.</footer></main>
+<script>
+const data=EPISODE_DATA, episodes=data.episodes;
+document.getElementById("identity").textContent=data.method+" · jeu "+data.bank+" · graine "+data.seed;
+const get=id=>document.getElementById(id), menu=get('ep'), slider=get('step'), player=get('play'), ctx=get('stage').getContext('2d');
+episodes.forEach((e,i)=>menu.add(new Option((i+1)+' / '+episodes.length+' · graine '+e.seed+' · stabilité '+e.stable+'/50',i)));
+let index=0,playing=false,base=0,origin=0,raf=0;
+const fmt=(n,k)=>n.toLocaleString('fr-FR',{minimumFractionDigits:k,maximumFractionDigits:k});
+function render(){
+ const f=episodes[Number(menu.value)].frames[index],x=480,y=255,r=185,bx=x-r*f[1],by=y-r*f[0];
+ ctx.clearRect(0,0,960,495);ctx.lineCap='round';
+ ctx.strokeStyle='#e1e7e2';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+ ctx.setLineDash([6,8]);ctx.strokeStyle='#ac7944';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-r);ctx.stroke();ctx.setLineDash([]);
+ ctx.font='22px system-ui';ctx.fillStyle='#77512c';ctx.textAlign='center';ctx.fillText('Cible',x,40);
+ ctx.strokeStyle='#1d6558';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(bx,by);ctx.stroke();
+ for(const [xx,yy,rr,color] of [[bx,by,17,'#1d6558'],[x,y,10,'#283c35']]){ctx.fillStyle=color;ctx.beginPath();ctx.arc(xx,yy,rr,0,7);ctx.fill()}
+ slider.value=index;get('time').textContent=fmt(index*.05,2)+' s';get('torque').textContent=index?fmt(f[2],2):'—';get('score').textContent=fmt(f[3],1);
+}
+function stop(){playing=false;cancelAnimationFrame(raf);player.textContent=index===200?'Rejouer':'Lire'}
+function tick(now){if(!playing)return;index=Math.min(200,base+Math.floor((now-origin)/50));render();if(index===200)stop();else raf=requestAnimationFrame(tick)}
+function start(){if(index===200)index=0;playing=true;base=index;origin=performance.now();player.textContent='Pause';render();raf=requestAnimationFrame(tick)}
+player.onclick=()=>playing?stop():start();menu.onchange=()=>{index=0;stop();render();start()};slider.oninput=()=>{index=Number(slider.value);stop();render()};
+render();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)start();
+</script></html>

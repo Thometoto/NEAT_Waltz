@@ -11,7 +11,7 @@ from neat.innovation import InnovationTracker
 def run_waltz(
     config, fitness, generations, *, islands=4, tempo=5, seed=None,
     on_visit=None, crossover=True, travel=True, waltzers=1, candidates_per_waltzer=1,
-    tempo_schedule=None,
+    tempo_schedule=None, on_candidate=None, on_generation=None,
 ):
     """Return (best genome overall, best final waltzer by training fitness).
 
@@ -31,8 +31,13 @@ def run_waltz(
     The callback also receives waltzer_id and candidates_per_generation when
     either new parameter differs from 1. Existing single-waltzer calls retain
     their callback arguments and return values.
+    on_candidate(**event) observes every evaluated child, including rejected
+    children. on_generation(**event) observes training-only state after selection,
+    including generation 0. Neither observer performs extra fitness evaluations.
+    Genome keys are island-local: records identify genomes by (island, key).
     """
-    if islands < 2 or tempo < 1 or generations < 1 or config.pop_size < 2:
+    if (type(islands) is not int or islands < 2 or type(tempo) is not int or tempo < 1
+            or type(generations) is not int or generations < 1 or config.pop_size < 2):
         raise ValueError("Use at least two islands and two genomes per island, with positive tempo and generations.")
     if type(waltzers) is not int or not 0 <= waltzers <= islands:
         raise ValueError("waltzers must be an integer between 0 and the island count")
@@ -56,6 +61,9 @@ def run_waltz(
         best = None
         active_waltzers = []
         candidate_groups = []
+        candidate_parents = []
+        origins = list(range(waltzers))
+        evaluations = candidate_evaluations = 0
         accepted = [0] * waltzers
         hosts = list(range(waltzers))
         visit_index = 0
@@ -64,19 +72,38 @@ def run_waltz(
         visit_end = current_tempo
 
         for generation in range(generations):
+            _check_population_sizes(populations, config.pop_size)
             champions = [_evaluate_champion(island, fitness) for island in populations]
+            evaluations += sum(len(island.population) for island in populations)
             champion = max(champions, key=lambda g: g.fitness)
             if best is None or champion.fitness > best.fitness:
-                best = copy(champion)
+                best = deepcopy(champion)
             if generation == 0:
                 active_waltzers = [copy(genome) for genome in champions[:waltzers]]
                 arrival_fitness = [genome.fitness for genome in active_waltzers]
             else:
                 for index, candidates in enumerate(candidate_groups):
                     candidate = max(candidates, key=lambda genome: genome.fitness)
-                    if candidate.fitness > active_waltzers[index].fitness:
+                    parent = active_waltzers[index]
+                    improved = candidate.fitness > parent.fitness
+                    candidate_evaluations += len(candidates)
+                    if on_candidate is not None:
+                        for child in candidates:
+                            on_candidate(**_candidate_event(
+                                generation, index, hosts[index], current_tempo,
+                                candidate_parents[index], child,
+                                accepted=improved and child is candidate,
+                            ))
+                    if improved:
                         active_waltzers[index] = copy(candidate)
+                        origins[index] = hosts[index]
                         accepted[index] += 1
+
+            if on_generation is not None:
+                on_generation(**_generation_event(
+                    generation, populations, best, active_waltzers, hosts, origins,
+                    evaluations, candidate_evaluations,
+                ))
 
             final_generation = generation + 1 == generations
             if on_visit is not None and generation > 0 and (generation == visit_end or final_generation):
@@ -94,6 +121,9 @@ def run_waltz(
                     accepted[index] = 0
 
             if final_generation:
+                if (evaluations != generations * islands * config.pop_size
+                        or candidate_evaluations != (generations - 1) * waltzers * candidates_per_waltzer):
+                    raise RuntimeError("Training/candidate evaluation budget mismatch")
                 return best, max(active_waltzers, key=lambda genome: genome.fitness, default=None)
 
             if generation == visit_end:
@@ -104,11 +134,16 @@ def run_waltz(
             offset = visit_index if travel else 0
             hosts = [(index + offset) % islands for index in range(waltzers)]
             candidate_groups = [[] for _ in range(waltzers)]
+            candidate_parents = [None] * waltzers
             for index, island in enumerate(populations):
                 offspring = _reproduce(island, generation)
                 if index in hosts:
                     waltzer_index = hosts.index(index)
                     local_champion = champions[index] if crossover else None
+                    if on_candidate is not None:
+                        candidate_parents[waltzer_index] = _parent_event(
+                            active_waltzers[waltzer_index], origins[waltzer_index], local_champion, index,
+                        )
                     # Reserve slots before insertion so candidates cannot replace each other.
                     slots = sorted(offspring.values(), key=_replacement_priority)[:candidates_per_waltzer]
                     for slot in slots:
@@ -123,6 +158,47 @@ def run_waltz(
         genome_config.node_indexer = original_node_indexer
         genome_config.innovation_tracker = original_tracker
         random.setstate(random_state)
+
+
+def _check_population_sizes(populations, size):
+    if any(len(island.population) != size for island in populations):
+        raise RuntimeError("Island population size changed")
+
+
+def _genome_event(genome, island):
+    """JSON-compatible snapshot; island is the genome's origin, not its host."""
+    if genome is None:
+        return None
+    event = dict(island=island, key=genome.key, fitness=genome.fitness,
+                 nodes=len(genome.nodes), connections=len(genome.connections),
+                 enabled_connections=sum(g.enabled for g in genome.connections.values()))
+    if hasattr(genome, "region_mse"):
+        event["region_mse"] = list(genome.region_mse)
+    return event
+
+
+def _parent_event(waltzer, origin, local, host):
+    return dict(waltzer_parent=_genome_event(waltzer, origin),
+                local_parent=_genome_event(local, host))
+
+
+def _candidate_event(generation, index, host, tempo, parents, child, *, accepted):
+    before = parents["waltzer_parent"]["fitness"]
+    return dict(generation=generation, created_generation=generation - 1,
+                waltzer_id=index, island=host, tempo=tempo, **parents,
+                candidate=_genome_event(child, host), fitness_before=before,
+                fitness_gain=child.fitness - before, accepted=accepted)
+
+
+def _generation_event(generation, populations, best, lineages, hosts, origins,
+                      evaluations, candidate_evaluations):
+    return dict(generation=generation, genome_evaluations=evaluations,
+                candidate_evaluations=candidate_evaluations,
+                population_sizes=[len(p.population) for p in populations],
+                island_best_fitness=[max(g.fitness for g in p.population.values()) for p in populations],
+                best_fitness=best.fitness,
+                lineages=[dict(waltzer_id=j, host=hosts[j], **_genome_event(g, origins[j]))
+                          for j, g in enumerate(lineages)])
 
 
 def _create_populations(config, island_count):

@@ -12,6 +12,8 @@ dist/
 
 # New runs and quick-example plots; published results remain tracked
 /generated/
+/old/
+/docs/paper_figures/
 /circle_waltz.png
 /spiral_waltz.png
 /xor_waltz.png

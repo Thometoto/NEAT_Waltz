@@ -53,11 +53,15 @@ def run_trial(task, train, test, generations, seed, method):
     waltzers = 1 if is_sine else 4
     config = sine_config() if is_sine else create_config(4, mutation_power=0.1)
     visits, evaluations = [], 0
+    candidate_history, generation_history = [], []
+    observers = dict(on_candidate=lambda **event: candidate_history.append(event),
+                     on_generation=lambda **event: generation_history.append(event))
     print(f"{task.title()} | seed {seed} | {METHODS[method]} | {generations * 120:,} evaluations...", flush=True)
     started = perf_counter()
     if is_sine:
         mode = dict(classic="classic", independent="independent", stationary="stationary").get(method, "waltz")
-        result = run_domains(config, train, generations, mode=mode, seed=seed, waltzers=waltzers, **options)
+        result = run_domains(config, train, generations, mode=mode, seed=seed, waltzers=waltzers,
+                             **options, **observers)
         best = result["best"]
         final = max(result["lineages"], key=lambda g: g.fitness, default=None)
         evaluations = result["genome_evaluations"]
@@ -74,15 +78,17 @@ def run_trial(task, train, test, generations, seed, method):
             return -classification_metrics(neat.nn.FeedForwardNetwork.create(genome, cfg), train)[0]
 
         if method == "classic":
-            best, config = run_classic_neat(config, fitness, generations, seed)
+            best, config = run_classic_neat(config, fitness, generations, seed,
+                                           on_generation=observers["on_generation"])
             final = None
         else:
             best, final = run_waltz(config, fitness, generations, seed=seed,
                                    waltzers=0 if method == "independent" else waltzers,
-                                   travel=method != "stationary", on_visit=lambda **event: visits.append(event), **options)
+                                   travel=method != "stationary", on_visit=lambda **event: visits.append(event),
+                                   **options, **observers)
         history = []
         train_count = len(train)
-        candidate_evaluations = 0 if method in ("classic", "independent") else waltzers * (generations - 1)
+        candidate_evaluations = len(candidate_history)
     seconds = perf_counter() - started
     if evaluations != generations * 120:
         raise RuntimeError("Training evaluation budget mismatch")
@@ -100,7 +106,8 @@ def run_trial(task, train, test, generations, seed, method):
                train_mse=-best.fitness, test_mse=test_mse, test_accuracy=test_accuracy,
                final_waltzer_train_mse="" if final is None else -final.fitness,
                final_waltzer_test_mse=final_mse, final_waltzer_test_accuracy=final_accuracy, training_seconds=seconds)
-    diagnostic = dict(visits=visits, history=history)
+    diagnostic = dict(visits=visits, history=history, candidate_history=candidate_history,
+                      generation_history=generation_history)
     network = neat.nn.FeedForwardNetwork.create(best, config)
     model = None
     if is_sine:
@@ -276,6 +283,8 @@ def run_task(task, output, *, workers=3, smoke=False):
                     training_examples=train, test_examples=test, neat_settings=settings,
                     bootstrap_seed=0, bootstrap_resamples=10000, python_version=platform.python_version(),
                     neat_python_version=version("neat-python"),
+                    observation_schema="waltz_training_observations_v1",
+                    observation_fitness="Higher is better; global for lineages/archive, local for Sine island selection",
                     source_sha256={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                                    for name in ("confirm_tempo.py", "waltz_tempo.py", "neat_waltz_domains.py", "neat_waltz.py",
                                                 "neat_genome.py", "neat_migration.py", "test_sine.py", "test_xor.py",

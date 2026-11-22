@@ -1,0 +1,16 @@
+reference,bank,pairs,median_delta,wins,ties,losses
+classic_raw,1,3,1027.4072928242676,3,0,0
+classic_raw,2,3,949.9133733341072,3,0,0
+classic_raw,3,3,721.4873282245229,3,0,0
+independent_raw,1,3,815.834558374722,3,0,0
+independent_raw,2,3,936.577463561927,3,0,0
+independent_raw,3,3,689.7669888731878,3,0,0
+classic_energy,1,3,-3.9242576875639372,1,0,2
+classic_energy,2,3,-0.4860483830564135,1,0,2
+classic_energy,3,3,0.0011328241380113013,2,0,1
+independent_energy,1,3,-3.9075560654828223,1,0,2
+independent_energy,2,3,-0.4857346643867686,0,0,3
+independent_energy,3,3,-0.0003517213305599398,1,0,2
+waltz1_energy,1,3,3.6030228496928203,3,0,0
+waltz1_energy,2,3,-2.251596995850832,1,0,2
+waltz1_energy,3,3,0.10713556780407885,3,0,0

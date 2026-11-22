@@ -268,15 +268,25 @@ def accuracy(genome, config, examples):
     return count_correct(network, examples) / len(examples)
 
 
-def run_classic_neat(config, fitness, generations, seed):
+def run_classic_neat(config, fitness, generations, seed, *, on_generation=None):
     """Run one NEAT population with the same total population size as the islands."""
     classic_config = deepcopy(config)
     classic_config.pop_size *= len(ISLAND_COLORS)
     classic_config.no_fitness_termination = True
+    generation, evaluations, best_fitness = 0, 0, float("-inf")
 
     def evaluate(genomes, config):
+        nonlocal generation, evaluations, best_fitness
         for _, genome in genomes:
             genome.fitness = fitness(genome, config)
+        evaluations += len(genomes)
+        current = max(g.fitness for _, g in genomes)
+        best_fitness = max(best_fitness, current)
+        if on_generation is not None:
+            on_generation(generation=generation, genome_evaluations=evaluations,
+                          candidate_evaluations=0, population_sizes=[len(genomes)],
+                          island_best_fitness=[current], best_fitness=best_fitness, lineages=[])
+        generation += 1
 
     population = neat.Population(classic_config, seed=seed)
     return population.run(evaluate, generations), population.config

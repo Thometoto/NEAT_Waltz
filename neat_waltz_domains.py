@@ -7,7 +7,9 @@ from math import isfinite
 import neat
 
 from neat_migration import _insert_migrant
-from neat_waltz import _create_populations, _insert_waltzer_candidate, _replacement_priority, _reproduce
+from neat_waltz import (_candidate_event, _check_population_sizes, _create_populations,
+                        _generation_event, _insert_waltzer_candidate, _parent_event,
+                        _replacement_priority, _reproduce)
 
 
 MODES = ("classic", "independent", "waltz", "stationary", "mutation", "migration")
@@ -41,7 +43,7 @@ def global_copy(genome):
 
 
 def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, waltzers=1,
-                tempo_schedule=None):
+                tempo_schedule=None, on_candidate=None, on_generation=None):
     """Return the best global-training genome, final lineages and training-only traces.
 
     Four equal-size regions. Every evaluated genome predicts all training points,
@@ -51,6 +53,9 @@ def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, 
     from different domains. No test points enter this function.
     Optional tempo_schedule uses each duration for one complete four-visit tour,
     then retains the last duration, as in run_waltz. Fixed-tempo calls are unchanged.
+    Optional on_candidate/on_generation observers use the run_waltz event schema.
+    Candidate parent/child fitness and lineage fitness are global; island_best_fitness
+    is local in island modes. Generation events also report island_best_global_fitness.
     """
     if mode not in CROSSOVER_MODES or len(regions) != 4 or not regions[0] or len({len(r) for r in regions}) != 1:
         raise ValueError("Use a supported mode and four nonempty equally sized training regions")
@@ -73,6 +78,8 @@ def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, 
         lineage_count = waltzers if mode in ("waltz", "stationary", "mutation", "waltz_no_mutation", "stationary_no_mutation") else 0
         starts = [(seed + j) % 4 for j in range(lineage_count)]
         hosts = starts[:]
+        origins = starts[:]
+        candidate_parents = []
         lineages, pending, history, snapshots = [], [], [], []
         visits, accepted = [], [0] * lineage_count
         arrivals = []
@@ -83,6 +90,7 @@ def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, 
         current_tempo = visit_end = tempos[0]
 
         for generation in range(generations):
+            _check_population_sizes(populations, config.pop_size)
             champions = []
             for host, island in enumerate(populations):
                 for genome in island.population.values():
@@ -105,9 +113,24 @@ def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, 
                 for j, candidate in enumerate(pending):
                     candidate_evaluations += 1
                     candidate = global_copy(candidate)
-                    if candidate.fitness > lineages[j].fitness:
+                    improved = candidate.fitness > lineages[j].fitness
+                    if on_candidate is not None:
+                        on_candidate(**_candidate_event(
+                            generation, j, hosts[j], current_tempo,
+                            candidate_parents[j], candidate, accepted=improved,
+                        ))
+                    if improved:
                         lineages[j] = candidate
+                        origins[j] = hosts[j]
                         accepted[j] += 1
+
+            if on_generation is not None:
+                event = _generation_event(generation, populations, best, lineages, hosts, origins,
+                                          evaluations, candidate_evaluations)
+                event["island_best_global_fitness"] = [
+                    max(-sum(g.region_mse) / 4 for g in p.population.values()) for p in populations
+                ]
+                on_generation(**event)
 
             for j, genome in enumerate(lineages):
                 history.append(dict(generation=generation, waltzer=j, host=hosts[j],
@@ -138,6 +161,7 @@ def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, 
             offset = visit_index if mode not in ("stationary", "stationary_no_mutation") else 0
             hosts = [(start + offset) % 4 for start in starts]
             pending = []
+            candidate_parents = [None] * lineage_count
             migrate = mode == "migration" and (generation + 1) % tempo == 0
             donors = deepcopy(champions) if migrate else []
             for host, island in enumerate(populations):
@@ -146,6 +170,8 @@ def run_domains(config, regions, generations, *, mode="waltz", seed=0, tempo=5, 
                     j = hosts.index(host)
                     # Both parent fitness values use the same global training data.
                     local = global_copy(champions[host]) if mode != "mutation" else None
+                    if on_candidate is not None:
+                        candidate_parents[j] = _parent_event(lineages[j], origins[j], local, host)
                     insert = insert_crossover_only if mode in ("waltz_no_mutation", "stationary_no_mutation") else _insert_waltzer_candidate
                     pending.append((j, insert(island, offspring, lineages[j], local)))
                 if migrate:

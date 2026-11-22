@@ -1,0 +1,17 @@
+task,dataset,metric,n,median_gain,wins,ties,losses
+circle,0,best_accuracy_gain_pp,10,3.02734375,6,1,3
+circle,0,best_mse_reduction,10,0.015232949712219744,7,0,3
+circle,0,stream_accuracy_gain_pp,10,3.22265625,7,0,3
+circle,0,stream_mse_reduction,10,0.01107646265497389,7,0,3
+circle,1,best_accuracy_gain_pp,10,-3.02734375,3,0,7
+circle,1,best_mse_reduction,10,-0.00968382129831373,4,0,6
+circle,1,stream_accuracy_gain_pp,10,0.0,5,0,5
+circle,1,stream_mse_reduction,10,-0.006349577705655612,3,0,7
+spiral,0,best_accuracy_gain_pp,10,0.87890625,5,0,5
+spiral,0,best_mse_reduction,10,-0.0038061502354751614,3,0,7
+spiral,0,stream_accuracy_gain_pp,10,-0.390625,4,1,5
+spiral,0,stream_mse_reduction,10,-0.0010087238020411032,5,0,5
+spiral,1,best_accuracy_gain_pp,10,2.44140625,7,0,3
+spiral,1,best_mse_reduction,10,0.005704877520948677,6,0,4
+spiral,1,stream_accuracy_gain_pp,10,4.8828125,8,0,2
+spiral,1,stream_mse_reduction,10,0.03800875328111633,8,0,2

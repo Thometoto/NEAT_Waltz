@@ -1,0 +1,7 @@
+method,controllers,solved,successful_episodes,episodes,median_return
+classic_raw,9,0,26,288,-1118.6498090607515
+independent_raw,9,0,21,288,-1029.2054932392516
+classic_energy,9,9,288,288,-168.50415357235042
+independent_energy,9,9,288,288,-166.2958284814662
+waltz1_energy,9,9,288,288,-168.44481440615516
+waltz2_energy,9,9,288,288,-168.73643572664437
